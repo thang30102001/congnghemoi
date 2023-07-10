@@ -1,0 +1,50 @@
+#from gpiozero import Buzzer
+import adafruit_dht
+from time import time, sleep
+from urllib.request import urlopen
+import sys
+import psutil
+import board
+
+for proc in psutil.process_iter():
+    if proc.name() == 'libgpiod_pulsein' or proc.name() == 'libgpiod_pulsei':
+        proc.kill()
+
+WRITE_API = "G0EU6NY1STYWHV7H" # Replace your ThingSpeak API key here
+BASE_URL = "https://api.thingspeak.com/update?api_key={}".format(WRITE_API)
+
+#buzzer = Buzzer(26)
+# chan ket noi cua DHT
+SENSOR_PIN = 26
+SensorPrevSec = 0
+SensorInterval = 2 # 2 seconds
+ThingSpeakPrevSec = 0
+ThingSpeakInterval = 0.1 # 0.1 seconds
+
+dhtDevice = adafruit_dht.DHT11(board.D26) 
+
+try:
+    while True:
+        if time() - SensorPrevSec > SensorInterval:
+            SensorPrevSec = time()
+            
+            temp_c = dhtDevice.temperature
+            temp_f = temp_c * (9 / 5) + 32
+            humi = dhtDevice.humidity
+            print("Temp: {}*F / {}*C    Humidity: {}% ".format(temp_f, temp_c, humi))
+
+        if time() - ThingSpeakPrevSec > ThingSpeakInterval:
+            ThingSpeakPrevSec = time()
+            
+            thingspeakHttp = BASE_URL + "&field1={:.2f}&field2={:.2f}".format(temp_c, humi)
+            print(thingspeakHttp)
+            
+            conn = urlopen(thingspeakHttp)
+            print("Response: {}".format(conn.read()))
+            conn.close()
+            
+            #buzzer.beep(0.05, 0.05, 1)
+            sleep(1)
+            
+except KeyboardInterrupt:
+    conn.close()
